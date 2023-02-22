@@ -1,0 +1,39 @@
+project_name: gaps-cli
+before:
+  hooks:
+    - go mod tidy
+builds:
+  - main: main.go
+    id: gaps-cli
+    binary: gaps-cli
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - >-
+        -s -w
+        -X lutonite.dev/gaps-cli/internal/version.version={{.Version}}
+        -X lutonite.dev/gaps-cli/internal/version.commit={{.FullCommit}}
+        -X lutonite.dev/gaps-cli/internal/version.date={{.Date}}
+        -X lutonite.dev/gaps-cli/internal/version.arch={{.Os}}/{{.Arch}}
+checksum:
+  name_template: 'checksums.txt'
+snapshot:
+  name_template: "{{ incpatch .Version }}-next"
+changelog:
+  use: git
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
