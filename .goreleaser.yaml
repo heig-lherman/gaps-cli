@@ -1,7 +1,7 @@
-project_name: gaps-cli
 before:
   hooks:
     - go mod tidy
+    - go generate ./...
 builds:
   - main: main.go
     id: gaps-cli
@@ -21,19 +21,57 @@ builds:
     ldflags:
       - >-
         -s -w
-        -X lutonite.dev/gaps-cli/internal/version.version={{.Version}}
-        -X lutonite.dev/gaps-cli/internal/version.commit={{.FullCommit}}
-        -X lutonite.dev/gaps-cli/internal/version.date={{.Date}}
-        -X lutonite.dev/gaps-cli/internal/version.arch={{.Os}}/{{.Arch}}
+        -X lutonite.dev/gaps-cli/_internal/version.version={{.Version}}
+        -X lutonite.dev/gaps-cli/_internal/version.commit={{.FullCommit}}
+        -X lutonite.dev/gaps-cli/_internal/version.date={{.Date}}
+        -X lutonite.dev/gaps-cli/_internal/version.arch={{.Os}}/{{.Arch}}
+    hooks:
+      post:
+        - upx "{{ .Path }}"
+archives:
+  - id: gaps-cli
+    rlcp: true
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+nfpms:
+  - id: gaps-cli
+    package_name: gaps-cli
+    description: CLI for GAPS (Gaps is an Academical Planification System)
+    vendor: Lutonite Developments
+    homepage: https://lutonite.dev/
+    maintainer: Lutonite <me@l6e.ch>
+    license: LGPL-3.0
+    formats:
+      - apk
+      - deb
+      - rpm
+      - archlinux
+    bindir: /usr/local/bin
+release:
+  github:
+    owner: lutonite
+    name: gaps-cli
+  prerelease: auto
 checksum:
   name_template: 'checksums.txt'
 snapshot:
   name_template: "{{ incpatch .Version }}-next"
 changelog:
-  use: git
   sort: asc
   filters:
     exclude:
       - '^docs:'
       - '^test:'
       - '^ci:'
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
