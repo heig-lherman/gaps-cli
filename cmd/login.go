@@ -10,7 +10,6 @@ import (
 	"lutonite.dev/gaps-cli/gaps"
 	"lutonite.dev/gaps-cli/util"
 	"os"
-	"syscall"
 	"time"
 )
 
@@ -57,7 +56,7 @@ var (
 
 			if viper.GetString(PasswordViperKey) == "" || loginOpts.changePassword {
 				fmt.Print("Enter your HEIG-VD einet AAI password: ")
-				passwordBytes, err := term.ReadPassword(syscall.Stdin)
+				passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 				password = string(passwordBytes)
 				fmt.Println("ok")
 				util.CheckErr(err)
