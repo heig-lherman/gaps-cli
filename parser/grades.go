@@ -92,6 +92,10 @@ func (p gradesParser) parse() ([]*ClassGrades, error) {
 			classOff := len(classes) - 1
 			groupOff := len(classes[classOff].GradeGroups) - 1
 
+			if groupOff < 0 {
+				return
+			}
+
 			classes[classOff].GradeGroups[groupOff].Grades = append(
 				classes[classOff].GradeGroups[groupOff].Grades,
 				grade,
@@ -120,7 +124,7 @@ func (p gradesParser) getRowType(row *goquery.Selection) gradeRowType {
 func (p gradesParser) parseClassHeader(row *goquery.Selection) (*ClassGrades, error) {
 	text := row.Find("td.bigheader").Text()
 
-	re, err := regexp.Compile(`(?m)^(\w{3,}) - moyenne\s+?(hors examen)?.+(\d.\d+)$`)
+	re, err := regexp.Compile(`(?m)^(\w{3,}) - moyenne\s+?(hors examen)?.+(\d.\d+|-)$`)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +147,7 @@ func (p gradesParser) parseGroupHeader(row *goquery.Selection) (*GradeGroup, err
 		return nil, err
 	}
 
-	re, err := regexp.Compile(`(?m)^(.+)<br\s*?/?>moyenne : (\d.\d)<br\s*?/?>poids : (\d+)$`)
+	re, err := regexp.Compile(`(?m)^(.+)<br\s*?/?>moyenne : (\d.\d|-)<br\s*?/?>poids : (\d+)$`)
 	if err != nil {
 		return nil, err
 	}
