@@ -25,9 +25,6 @@ builds:
         -X lutonite.dev/gaps-cli/_internal/version.commit={{.FullCommit}}
         -X lutonite.dev/gaps-cli/_internal/version.date={{.Date}}
         -X lutonite.dev/gaps-cli/_internal/version.arch={{.Os}}/{{.Arch}}
-    hooks:
-      post:
-        - upx "{{ .Path }}"
 archives:
   - id: gaps-cli
     rlcp: true
@@ -56,6 +53,8 @@ nfpms:
       - rpm
       - archlinux
     bindir: /usr/local/bin
+universal_binaries:
+  - replace: false
 release:
   github:
     owner: lutonite
