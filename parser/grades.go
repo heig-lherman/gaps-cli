@@ -124,7 +124,7 @@ func (p gradesParser) getRowType(row *goquery.Selection) gradeRowType {
 func (p gradesParser) parseClassHeader(row *goquery.Selection) (*ClassGrades, error) {
 	text := row.Find("td.bigheader").Text()
 
-	re, err := regexp.Compile(`(?m)^(\w{3,}) - moyenne\s+?(hors examen)?.+(\d.\d+|-)$`)
+	re, err := regexp.Compile(`(?m)^([\w-]{3,}) - moyenne\s+?(hors examen)?.+(\d.\d+|-)$`)
 	if err != nil {
 		return nil, err
 	}
