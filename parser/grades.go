@@ -41,10 +41,10 @@ type gradesParser struct {
 }
 
 const (
-	classHeader gradeRowType = iota
-	groupHeader
-	gradeRow
-	unknownRow
+	gradesClassHeader gradeRowType = iota
+	gradesGroupHeader
+	gradesGradeRow
+	gradesUnknownRow = -1
 )
 
 func (s *Parser) Grades() ([]*ClassGrades, error) {
@@ -64,7 +64,7 @@ func (p gradesParser) parse() ([]*ClassGrades, error) {
 	var globalErr error
 	p.doc.Find("table.displayArray tbody tr").Each(func(i int, s *goquery.Selection) {
 		switch p.getRowType(s) {
-		case classHeader:
+		case gradesClassHeader:
 			class, err := p.parseClassHeader(s)
 			if err != nil {
 				globalErr = err
@@ -72,7 +72,7 @@ func (p gradesParser) parse() ([]*ClassGrades, error) {
 			}
 
 			classes = append(classes, class)
-		case groupHeader:
+		case gradesGroupHeader:
 			group, err := p.parseGroupHeader(s)
 			if err != nil {
 				globalErr = err
@@ -82,7 +82,7 @@ func (p gradesParser) parse() ([]*ClassGrades, error) {
 			classOff := len(classes) - 1
 
 			classes[classOff].GradeGroups = append(classes[classOff].GradeGroups, group)
-		case gradeRow:
+		case gradesGradeRow:
 			grade, err := p.parseGradeRow(s)
 			if err != nil {
 				globalErr = err
@@ -111,13 +111,13 @@ func (p gradesParser) parse() ([]*ClassGrades, error) {
 
 func (p gradesParser) getRowType(row *goquery.Selection) gradeRowType {
 	if row.Has("td.bigheader").Length() > 0 {
-		return classHeader
+		return gradesClassHeader
 	} else if row.Has("td[rowspan]").Length() > 0 {
-		return groupHeader
+		return gradesGroupHeader
 	} else if row.Find("td").Size() == 5 {
-		return gradeRow
+		return gradesGradeRow
 	} else {
-		return unknownRow
+		return gradesUnknownRow
 	}
 }
 
