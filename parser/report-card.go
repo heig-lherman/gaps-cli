@@ -74,7 +74,7 @@ func (p reportCardParser) parse() ([]*ModuleReport, error) {
 
 		switch p.getRowType(s) {
 		case reportCardTableHeader:
-			if s.Children().Length() != 7 {
+			if s.Children().Length() < 6 {
 				globalErr = UnknownReportCardStructure
 				return
 			}
