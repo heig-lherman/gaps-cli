@@ -2,12 +2,10 @@ package cmd
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/zalando/go-keyring"
 	"golang.org/x/term"
 	"lutonite.dev/gaps-cli/gaps"
 	"lutonite.dev/gaps-cli/util"
@@ -16,9 +14,9 @@ import (
 )
 
 const (
-	ServiceKey        = "gaps-cli"
-	KeyringTokenKey   = "gaps.token"
 	UsernameViperKey  = "login.username"
+	PasswordViperKey  = "login.password"
+	TokenValueKey     = "login.token.value"
 	TokenStudentIdKey = "login.token.studentId"
 	TokenDateValueKey = "login.token.generatedAt"
 )
@@ -33,7 +31,7 @@ var (
 		Use:   "login",
 		Short: "Allows to login to GAPS for future commands",
 		Run: func(cmd *cobra.Command, args []string) {
-			if token, _ := getKeyringValue(KeyringTokenKey); token != "" && !loginOpts.changePassword {
+			if viper.GetString(TokenValueKey) != "" {
 				// Default session duration is 6 hours on GAPS
 				if !isTokenExpired() {
 					log.Info("User already logged in, keeping existing token")
@@ -56,16 +54,14 @@ var (
 				username = viper.GetString(UsernameViperKey)
 			}
 
-			if pwd, _ := getKeyringValue(username); pwd == "" || loginOpts.changePassword {
+			if viper.GetString(PasswordViperKey) == "" || loginOpts.changePassword {
 				fmt.Print("Enter your HEIG-VD einet AAI password: ")
 				passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 				password = string(passwordBytes)
 				fmt.Println("ok")
 				util.CheckErr(err)
 			} else {
-				var err error
-				password, err = getKeyringValue(username)
-				util.CheckErr(err)
+				password = viper.GetString(PasswordViperKey)
 			}
 
 			refreshToken(username, password)
@@ -79,6 +75,8 @@ func init() {
 	loginCmd.Flags().BoolVar(&loginOpts.changePassword, "clear-password", false, "reset the password stored in the config file (if any)")
 
 	viper.BindPFlag(UsernameViperKey, loginCmd.Flags().Lookup("username"))
+	viper.BindPFlag(PasswordViperKey, loginCmd.Flags().Lookup("password"))
+	viper.SetDefault(TokenValueKey, "")
 	viper.SetDefault(TokenStudentIdKey, -1)
 	viper.SetDefault(TokenDateValueKey, time.Now().UnixMilli())
 
@@ -91,8 +89,7 @@ func isTokenExpired() bool {
 
 func refreshToken(username string, password string) {
 	viper.Set(UsernameViperKey, username)
-	err := keyring.Set(ServiceKey, username, password)
-	util.CheckErr(err)
+	viper.Set(PasswordViperKey, password)
 
 	cfg := new(gaps.ClientConfiguration)
 	cfg.Init(viper.GetString(UrlViperKey))
@@ -110,9 +107,7 @@ func refreshToken(username string, password string) {
 	log.Tracef("Token: %s", token)
 	log.Tracef("Student Id: %d", studentId)
 
-	err = keyring.Set(ServiceKey, KeyringTokenKey, token)
-	util.CheckErr(err)
-
+	viper.Set(TokenValueKey, token)
 	viper.Set(TokenStudentIdKey, studentId)
 	viper.Set(TokenDateValueKey, time.Now().UnixMilli())
 
@@ -121,35 +116,18 @@ func refreshToken(username string, password string) {
 }
 
 func buildTokenClientConfiguration() *gaps.TokenClientConfiguration {
-	token, _ := getKeyringValue(KeyringTokenKey)
-	if token == "" {
+	if viper.GetString(TokenValueKey) == "" {
 		log.Fatal("No token found, please login first")
 	}
 
 	// if token is expired, refresh it
 	if isTokenExpired() {
 		log.Info("Token expired, attempting refresh")
-
-		pwd, err := keyring.Get(ServiceKey, viper.GetString(UsernameViperKey))
-		util.CheckErr(err)
-
-		refreshToken(viper.GetString(UsernameViperKey), pwd)
+		refreshToken(viper.GetString(UsernameViperKey), viper.GetString(PasswordViperKey))
 	}
 
 	cfg := new(gaps.TokenClientConfiguration)
-	cfg.InitToken(viper.GetString(UrlViperKey), token, viper.GetUint(TokenStudentIdKey))
+	cfg.InitToken(viper.GetString(UrlViperKey), viper.GetString(TokenValueKey), viper.GetUint(TokenStudentIdKey))
 
 	return cfg
-}
-
-func getKeyringValue(key string) (string, error) {
-	secret, err := keyring.Get(ServiceKey, key)
-
-	if errors.Is(err, keyring.ErrNotFound) {
-		return "", nil
-	} else if err != nil {
-		return "", err
-	}
-
-	return secret, nil
 }
