@@ -13,6 +13,9 @@ const (
 )
 
 var (
+	defaultViper     = viper.New()
+	credentialsViper = viper.New()
+
 	cfgFile     string
 	loggerLevel string
 
@@ -35,8 +38,42 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&loggerLevel, "log-level", "error", "logging level")
 	rootCmd.PersistentFlags().String(UrlViperKey, "", "GAPS URL (default is https://gaps.heig-vd.ch/)")
 
-	viper.BindPFlag(UrlViperKey, rootCmd.PersistentFlags().Lookup(UrlViperKey))
-	viper.SetDefault(UrlViperKey, "https://gaps.heig-vd.ch")
+	defaultViper.BindPFlag(UrlViperKey, rootCmd.PersistentFlags().Lookup(UrlViperKey))
+	defaultViper.SetDefault(UrlViperKey, "https://gaps.heig-vd.ch")
+}
+
+func getConfigDirectory() string {
+	configDir, err := os.UserConfigDir()
+	log.Debugf("host user config dir: %s", configDir)
+	util.CheckErr(err)
+
+	log.Debugf("creating config dir %s", configDir+"/gaps-cli")
+	err = os.MkdirAll(configDir+"/gaps-cli", 0755)
+	util.CheckErr(err)
+
+	return configDir
+}
+
+func initViper(v *viper.Viper, name string) {
+	v.AddConfigPath(getConfigDirectory())
+	v.SetConfigType("yaml")
+	v.SetConfigName("gaps-cli/" + name)
+}
+
+func bootstrapConfigFile(v *viper.Viper) {
+	log.Debugf("writing config file %s", v.ConfigFileUsed())
+	if err := v.SafeWriteConfig(); err != nil {
+		util.CheckErrExcept(err, viper.ConfigFileAlreadyExistsError(""))
+	}
+
+	if err := v.ReadInConfig(); err == nil {
+		log.WithField("file", v.ConfigFileUsed()).Infof("Reading global config file")
+	}
+}
+
+func writeConfig() {
+	defaultViper.WriteConfig()
+	credentialsViper.WriteConfig()
 }
 
 func initConfig() {
@@ -48,30 +85,19 @@ func initConfig() {
 	}
 
 	if cfgFile != "" {
-		viper.SetConfigFile(cfgFile)
+		defaultViper.SetConfigFile(cfgFile)
 	} else {
-		configDir, err := os.UserConfigDir()
-		log.Debugf("host user config dir: %s", configDir)
-		util.CheckErr(err)
-
-		log.Debugf("creating config dir %s", configDir+"/gaps-cli")
-		err = os.MkdirAll(configDir+"/gaps-cli", 0755)
-		util.CheckErr(err)
-
-		viper.AddConfigPath(configDir)
-		viper.SetConfigType("yaml")
-		viper.SetConfigName("gaps-cli/gaps")
+		initViper(defaultViper, "gaps")
 	}
 
-	viper.SetEnvPrefix("gaps")
-	viper.AutomaticEnv()
+	initViper(credentialsViper, "credentials")
 
-	log.Debugf("writing config file %s", viper.ConfigFileUsed())
-	if err := viper.SafeWriteConfig(); err != nil {
-		util.CheckErrExcept(err, viper.ConfigFileAlreadyExistsError(""))
-	}
+	defaultViper.SetEnvPrefix("gaps")
+	defaultViper.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err == nil {
-		log.WithField("file", viper.ConfigFileUsed()).Infof("Reading global config file")
-	}
+	credentialsViper.SetEnvPrefix("gaps")
+	credentialsViper.AutomaticEnv()
+
+	bootstrapConfigFile(defaultViper)
+	bootstrapConfigFile(credentialsViper)
 }

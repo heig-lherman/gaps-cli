@@ -5,7 +5,6 @@ import (
 	"fmt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"golang.org/x/term"
 	"lutonite.dev/gaps-cli/gaps"
 	"lutonite.dev/gaps-cli/util"
@@ -31,7 +30,7 @@ var (
 		Use:   "login",
 		Short: "Allows to login to GAPS for future commands",
 		Run: func(cmd *cobra.Command, args []string) {
-			if viper.GetString(TokenValueKey) != "" {
+			if credentialsViper.GetString(TokenValueKey) != "" && !loginOpts.changePassword {
 				// Default session duration is 6 hours on GAPS
 				if !isTokenExpired() {
 					log.Info("User already logged in, keeping existing token")
@@ -44,24 +43,24 @@ var (
 			var username string
 			var password string
 
-			if viper.GetString(UsernameViperKey) == "" {
+			if defaultViper.GetString(UsernameViperKey) == "" {
 				fmt.Print("Enter your HEIG-VD einet AAI username: ")
 				reader := bufio.NewReader(os.Stdin)
 				un, err := reader.ReadString('\n')
 				username = un[:len(un)-1]
 				util.CheckErr(err)
 			} else {
-				username = viper.GetString(UsernameViperKey)
+				username = defaultViper.GetString(UsernameViperKey)
 			}
 
-			if viper.GetString(PasswordViperKey) == "" || loginOpts.changePassword {
+			if credentialsViper.GetString(PasswordViperKey) == "" || loginOpts.changePassword {
 				fmt.Print("Enter your HEIG-VD einet AAI password: ")
 				passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 				password = string(passwordBytes)
 				fmt.Println("ok")
 				util.CheckErr(err)
 			} else {
-				password = viper.GetString(PasswordViperKey)
+				password = credentialsViper.GetString(PasswordViperKey)
 			}
 
 			refreshToken(username, password)
@@ -74,25 +73,25 @@ func init() {
 	loginCmd.Flags().String("password", "", "einet aai password (if not provided, you will be prompted to enter it)")
 	loginCmd.Flags().BoolVar(&loginOpts.changePassword, "clear-password", false, "reset the password stored in the config file (if any)")
 
-	viper.BindPFlag(UsernameViperKey, loginCmd.Flags().Lookup("username"))
-	viper.BindPFlag(PasswordViperKey, loginCmd.Flags().Lookup("password"))
-	viper.SetDefault(TokenValueKey, "")
-	viper.SetDefault(TokenStudentIdKey, -1)
-	viper.SetDefault(TokenDateValueKey, time.Now().UnixMilli())
+	defaultViper.BindPFlag(UsernameViperKey, loginCmd.Flags().Lookup("username"))
+	credentialsViper.BindPFlag(PasswordViperKey, loginCmd.Flags().Lookup("password"))
+	credentialsViper.SetDefault(TokenValueKey, "")
+	defaultViper.SetDefault(TokenStudentIdKey, -1)
+	defaultViper.SetDefault(TokenDateValueKey, time.Now().UnixMilli())
 
 	rootCmd.AddCommand(loginCmd)
 }
 
 func isTokenExpired() bool {
-	return time.Now().UnixMilli()-viper.GetInt64(TokenDateValueKey) > 6*60*60*1000
+	return time.Now().UnixMilli()-defaultViper.GetInt64(TokenDateValueKey) > 6*60*60*1000
 }
 
 func refreshToken(username string, password string) {
-	viper.Set(UsernameViperKey, username)
-	viper.Set(PasswordViperKey, password)
+	defaultViper.Set(UsernameViperKey, username)
+	credentialsViper.Set(PasswordViperKey, password)
 
 	cfg := new(gaps.ClientConfiguration)
-	cfg.Init(viper.GetString(UrlViperKey))
+	cfg.Init(defaultViper.GetString(UrlViperKey))
 
 	log.Debug("fetching token...")
 	login := gaps.NewLoginAction(cfg, username, password)
@@ -107,27 +106,27 @@ func refreshToken(username string, password string) {
 	log.Tracef("Token: %s", token)
 	log.Tracef("Student Id: %d", studentId)
 
-	viper.Set(TokenValueKey, token)
-	viper.Set(TokenStudentIdKey, studentId)
-	viper.Set(TokenDateValueKey, time.Now().UnixMilli())
+	credentialsViper.Set(TokenValueKey, token)
+	defaultViper.Set(TokenStudentIdKey, studentId)
+	defaultViper.Set(TokenDateValueKey, time.Now().UnixMilli())
 
 	log.Debug("saving config")
-	viper.WriteConfig()
+	writeConfig()
 }
 
 func buildTokenClientConfiguration() *gaps.TokenClientConfiguration {
-	if viper.GetString(TokenValueKey) == "" {
+	if credentialsViper.GetString(TokenValueKey) == "" {
 		log.Fatal("No token found, please login first")
 	}
 
 	// if token is expired, refresh it
 	if isTokenExpired() {
 		log.Info("Token expired, attempting refresh")
-		refreshToken(viper.GetString(UsernameViperKey), viper.GetString(PasswordViperKey))
+		refreshToken(defaultViper.GetString(UsernameViperKey), credentialsViper.GetString(PasswordViperKey))
 	}
 
 	cfg := new(gaps.TokenClientConfiguration)
-	cfg.InitToken(viper.GetString(UrlViperKey), viper.GetString(TokenValueKey), viper.GetUint(TokenStudentIdKey))
+	cfg.InitToken(defaultViper.GetString(UrlViperKey), credentialsViper.GetString(TokenValueKey), defaultViper.GetUint(TokenStudentIdKey))
 
 	return cfg
 }

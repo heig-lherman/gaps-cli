@@ -68,13 +68,17 @@ func init() {
 	rootCmd.AddCommand(gradesCmd)
 }
 
-func (*GradesCmdOpts) defaultYear() string {
+func currentAcademicYear() uint {
 	actual, _ := ch.BettagMontag.Calc(time.Now().Year())
 	if time.Now().Before(actual) {
-		return fmt.Sprintf("%d", time.Now().Year()-1)
+		return uint(time.Now().Year() - 1)
 	}
 
-	return fmt.Sprintf("%d", time.Now().Year())
+	return uint(time.Now().Year())
+}
+
+func (*GradesCmdOpts) defaultYear() string {
+	return fmt.Sprintf("%d", currentAcademicYear())
 }
 
 func (g *GradesCmdOpts) PrintGradesTable(classGrades []*parser.ClassGrades) {
