@@ -55,6 +55,18 @@ nfpms:
     bindir: /usr/local/bin
 universal_binaries:
   - replace: false
+dockers:
+  - image_templates:
+      - "ghcr.io/heig-lherman/gaps-cli:{{ .Tag }}"
+      - "ghcr.io/heig-lherman/gaps-cli:v{{ .Major }}"
+      - "ghcr.io/heig-lherman/gaps-cli:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/heig-lherman/gaps-cli:latest"
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
 release:
   github:
     owner: heig-lherman

@@ -12,16 +12,21 @@ import (
 	"lutonite.dev/gaps-cli/notifier"
 	"lutonite.dev/gaps-cli/parser"
 	"os"
+	"os/signal"
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
 type ScraperCommand struct {
-	apiUrl   string
-	apiKey   string
+	apiUrl string
+	apiKey string
+
 	interval int
+
+	historyFile string
 }
 
 type scraperResult map[string]map[string]*scraperGrade
@@ -42,14 +47,17 @@ var (
 		Short: "Runs a scraper for grades for the distributed Discord notifications API",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			log.Info("Running scraper")
-			done := make(chan bool)
+
+			c := make(chan os.Signal)
+			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 			ticker := time.NewTicker(time.Duration(scraperOpts.interval) * time.Second)
 
 			defer ticker.Stop()
 			for {
 				select {
-				case <-done:
+				case <-c:
+					log.Info("Received interrupt, exiting")
 					return nil
 				case <-ticker.C:
 					if err := scraperOpts.runScraper(); err != nil {
@@ -62,13 +70,21 @@ var (
 )
 
 func init() {
-	scraperCmd.Flags().StringP("username", "u", "", "einet aai username")
-	scraperCmd.Flags().StringP("password", "p", "", "einet aai password")
-	defaultViper.BindPFlag(UsernameViperKey, scraperCmd.Flags().Lookup("username"))
-	credentialsViper.BindPFlag(PasswordViperKey, scraperCmd.Flags().Lookup("password"))
+	scraperCmd.Flags().StringP(UsernameViperKey.Flag(), "u", "", "einet aai username")
+	defaultViper.BindPFlag(UsernameViperKey.Key(), scraperCmd.Flags().Lookup(UsernameViperKey.Flag()))
 
-	scraperCmd.Flags().StringVarP(&scraperOpts.apiUrl, "api-url", "U", "", "Notifier API URL")
-	scraperCmd.Flags().StringVarP(&scraperOpts.apiKey, "api-key", "k", "", "Notifier API key")
+	scraperCmd.Flags().StringP(PasswordViperKey.Flag(), "p", "", "einet aai password")
+	credentialsViper.BindPFlag(PasswordViperKey.Key(), scraperCmd.Flags().Lookup(PasswordViperKey.Flag()))
+
+	scraperCmd.Flags().StringVar(&scraperOpts.historyFile, GradesHistoryFileViperKey.Flag(), "", "history file (default is $HOME/.config/gaps-cli/grades-history.json)")
+	defaultViper.BindPFlag(GradesHistoryFileViperKey.Key(), scraperCmd.Flags().Lookup(GradesHistoryFileViperKey.Flag()))
+	defaultViper.SetDefault(GradesHistoryFileViperKey.Key(), getConfigDirectory()+"/gaps-cli/grades-history.json")
+
+	scraperCmd.Flags().StringVarP(&scraperOpts.apiUrl, ScraperApiUrlViperKey.Flag(), "U", "", "Notifier API URL")
+	defaultViper.BindPFlag(ScraperApiUrlViperKey.Key(), scraperCmd.Flags().Lookup(ScraperApiUrlViperKey.Flag()))
+
+	scraperCmd.Flags().StringVarP(&scraperOpts.apiKey, ScraperApiKeyViperKey.Flag(), "k", "", "Notifier API key")
+	defaultViper.BindPFlag(ScraperApiKeyViperKey.Key(), scraperCmd.Flags().Lookup(ScraperApiKeyViperKey.Flag()))
 
 	scraperCmd.Flags().IntVar(&scraperOpts.interval, "interval", 300, "Interval between each scrape (in seconds)")
 
@@ -210,13 +226,9 @@ func (s *ScraperCommand) logChange(previous *scraperGrade, grade *scraperGrade, 
 	)
 }
 
-func (s *ScraperCommand) historyFile() string {
-	return getConfigDirectory() + "/gaps-cli/grades-history.json"
-}
-
 func (s *ScraperCommand) readHistory() (scraperResult, error) {
 	var grades scraperResult
-	data, err := os.ReadFile(s.historyFile())
+	data, err := os.ReadFile(s.historyFile)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, nil
@@ -235,7 +247,7 @@ func (s *ScraperCommand) writeHistory(grades scraperResult) error {
 		return err
 	}
 
-	return os.WriteFile(s.historyFile(), data, 0644)
+	return os.WriteFile(s.historyFile, data, 0644)
 }
 
 func (s *ScraperCommand) findClass(grade *scraperGrade, classes []string) string {

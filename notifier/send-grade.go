@@ -15,7 +15,7 @@ func (c *Client) SendGrade(ctx context.Context, grade *ApiGrade) error {
 	}
 
 	req, err := http.NewRequest(
-		"POST", fmt.Sprintf("%s/grades", c.BaseUrl),
+		"POST", fmt.Sprintf("%s/api/grade", c.BaseUrl),
 		bytes.NewBuffer(body),
 	)
 	if err != nil {
