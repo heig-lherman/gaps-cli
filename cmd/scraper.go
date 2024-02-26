@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -146,7 +145,6 @@ func (s *ScraperCommand) runScraper() error {
 		n := &notifier.ApiGrade{
 			Course: grade.Course,
 			Class:  s.findClass(grade, classes),
-			Year:   uint32(year),
 			Name:   grade.Description,
 			Mean:   float32(nmean),
 		}
@@ -274,7 +272,7 @@ func (s *ScraperCommand) findClass(grade *scraperGrade, classes []string) string
 			continue
 		}
 
-		return fmt.Sprintf("%s-%s", grade.Course, className)
+		return className
 	}
 
 	return grade.Course
