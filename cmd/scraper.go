@@ -45,7 +45,13 @@ var (
 		Use:   "scraper",
 		Short: "Runs a scraper for grades for the distributed Discord notifications API",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log.Info("Running scraper")
+			log.Info("Refreshing token")
+			refreshToken(
+				defaultViper.GetString(UsernameViperKey.Key()),
+				credentialsViper.GetString(PasswordViperKey.Key()),
+			)
+
+			log.Info("Starting scraper thread")
 
 			c := make(chan os.Signal)
 			signal.Notify(c, os.Interrupt, syscall.SIGTERM)
