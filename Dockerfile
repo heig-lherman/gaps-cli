@@ -1,4 +1,4 @@
-FROM scratch
+FROM alpine
 
 ENV GAPS_LOGIN_USERNAME=""                          \
     GAPS_LOGIN_PASSWORD=""                          \
