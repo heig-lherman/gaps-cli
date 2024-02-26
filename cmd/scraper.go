@@ -156,7 +156,6 @@ func (s *ScraperCommand) runScraper() error {
 		}
 
 		s.logChange(previous, grade, change)
-		log.Printf("%v", n)
 
 		ctx := context.Background()
 		err = client.SendGrade(ctx, n)
