@@ -7,7 +7,7 @@ import (
 func GetAllClasses(cfg *TokenClientConfiguration, year uint) []string {
 	sa0 := NewStudentScheduleAction(cfg, year, 0)
 	sa1 := NewStudentScheduleAction(cfg, year, 1)
-	sa2 := NewStudentScheduleAction(cfg, year, 2)
+	sa2 := NewStudentScheduleAction(cfg, year, 3)
 	s0, _ := sa0.FetchSchedule()
 	s1, _ := sa1.FetchSchedule()
 	s2, _ := sa2.FetchSchedule()
