@@ -21,9 +21,10 @@ const (
 )
 
 type AbsencesCmdOpts struct {
-	format string
-	year   string
-	period AbsencesPeriod
+	format  string
+	year    string
+	period  AbsencesPeriod
+	minRate uint
 }
 
 var (
@@ -65,6 +66,7 @@ func init() {
 		string(ALL),
 		"Period to calculate absences for (all, ete, semestre1, semestre2)",
 	)
+	absencesCmd.Flags().UintVarP(&absencesOpts.minRate, "rate", "r", 0, "Minimum rate to display")
 	rootCmd.AddCommand(absencesCmd)
 }
 
@@ -112,7 +114,7 @@ func printAbsences(absences *parser.AbsenceReport) {
 			selected = true
 		}
 
-		if selected {
+		if selected && absolutePresence >= float64(absencesOpts.minRate) {
 			t.AppendRow(table.Row{
 				a.Name,
 				totalAbsence,

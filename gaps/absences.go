@@ -26,7 +26,6 @@ func (a *AbsencesAction) FetchAbsences() (*parser.AbsenceReport, error) {
 	}
 
 	// POST rsargs to get all absences
-	// showAllConfig := `["studentAbsGrid_rateSelectorId","studentAbsGrid","410697149756876201",null,null,"2024","0",19686,null]`
 	showAllConfig := fmt.Sprintf(`["studentAbsGrid_rateSelectorId","studentAbsGrid","%d",null,null,"%d","0",19686,null]`, a.cfg.token, a.year)
 
 	data := url.Values{}
