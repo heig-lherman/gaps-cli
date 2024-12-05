@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -21,10 +22,10 @@ const (
 )
 
 type AbsencesCmdOpts struct {
-	format  string
-	year    string
-	period  AbsencesPeriod
-	minRate uint
+	format   string
+	year     string
+	semester AbsencesPeriod
+	minRate  uint
 }
 
 var (
@@ -33,11 +34,10 @@ var (
 		Use:   "absences",
 		Short: "Allows to consult your absences",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			switch absencesOpts.period {
-			case ALL, ETE, SEMESTRE_1, SEMESTRE_2:
-				// valid
+			switch absencesOpts.semester {
+			case ALL, ETE, SEMESTRE_1, SEMESTRE_2: // valid
 			default:
-				return fmt.Errorf("invalid period: %s. Must be one of: all, ete, semestre1, semestre2", absencesOpts.period)
+				return fmt.Errorf("invalid semester: %s. Must be one of: all, ete, 1, 2", absencesOpts.semester)
 			}
 
 			cfg := buildTokenClientConfiguration()
@@ -47,6 +47,11 @@ var (
 			if err != nil {
 				return fmt.Errorf("couldn't fetch absences: %w", err)
 			}
+
+			if absencesOpts.format == "json" {
+				return json.NewEncoder(os.Stdout).Encode(absences)
+			}
+
 			printAbsences(absences)
 			return nil
 		},
@@ -55,17 +60,10 @@ var (
 
 func init() {
 	absencesCmd.Flags().StringVarP(&absencesOpts.format, "format", "o", "table", "Output format (table, json)")
-	absencesCmd.Flags().StringVarP(
-		&absencesOpts.year, "year", "y", absencesOpts.defaultYear(),
-		"Academic year (year at the start of the academic year, e.g. 2020 for 2020-2021 academic year)",
-	)
-	absencesCmd.Flags().StringVarP(
-		(*string)(&absencesOpts.period),
-		"period",
-		"p",
-		string(ALL),
-		"Period to calculate absences for (all, ete, semestre1, semestre2)",
-	)
+	absencesCmd.Flags().StringVarP(&absencesOpts.year, "year", "y", absencesOpts.defaultYear(),
+		"Academic year (year at the start of the academic year, e.g. 2020 for 2020-2021 academic year)")
+	absencesCmd.Flags().StringVarP((*string)(&absencesOpts.semester), "semester", "s", string(ALL),
+		"Period to calculate absences for (all, ete, 1, 2)")
 	absencesCmd.Flags().UintVarP(&absencesOpts.minRate, "rate", "r", 0, "Minimum rate to display")
 	rootCmd.AddCommand(absencesCmd)
 }
@@ -88,7 +86,7 @@ func printAbsences(absences *parser.AbsenceReport) {
 
 	for _, a := range absences.Courses {
 		totalAbsence := a.Total - a.Justified
-		relativePresence, absolutePresence := calculateAbsences(&a)
+		selected, relativePresence, absolutePresence := calculateAbsences(&a)
 
 		getColoredRate := func(rate float64) string {
 			rateStr := fmt.Sprintf("%.2f%%", rate)
@@ -100,18 +98,6 @@ func printAbsences(absences *parser.AbsenceReport) {
 			default:
 				return text.Colors{text.FgGreen}.Sprint(rateStr)
 			}
-		}
-
-		selected := false
-		switch absencesOpts.period {
-		case ETE:
-			selected = (a.Periods.Ete > 0)
-		case SEMESTRE_1:
-			selected = (a.Periods.Term1 > 0) || (a.Periods.Term2 > 0)
-		case SEMESTRE_2:
-			selected = (a.Periods.Term3 > 0) || (a.Periods.Term4 > 0)
-		default:
-			selected = true
 		}
 
 		if selected && absolutePresence >= float64(absencesOpts.minRate) {
@@ -126,26 +112,27 @@ func printAbsences(absences *parser.AbsenceReport) {
 	t.Render()
 }
 
-func calculateAbsences(a *parser.CourseAbsence) (float64, float64) {
+func calculateAbsences(a *parser.CourseAbsence) (bool, float64, float64) {
+	selected := false
 	var relativePresence float64
 	var absolutePresence float64
-	switch absencesOpts.period {
+	switch absencesOpts.semester {
 	case ETE:
-		if a.Periods.Ete != 0 {
-			relativePresence = float64(a.Periods.Ete) / float64(a.RelativePeriods)
-			absolutePresence = float64(a.Periods.Ete) / float64(a.AbsolutePeriods)
-		} else {
-			return 0, 0
-		}
+		selected = (a.Periods.Ete-a.Justified > 0)
+		relativePresence = float64(a.Periods.Ete) / float64(a.RelativePeriods)
+		absolutePresence = float64(a.Periods.Ete) / float64(a.AbsolutePeriods)
 	case SEMESTRE_1:
-		relativePresence = float64(a.Periods.Term1+a.Periods.Term2) / float64(a.RelativePeriods)
-		absolutePresence = float64(a.Periods.Term1+a.Periods.Term2) / float64(a.AbsolutePeriods)
+		selected = (a.Periods.Term1-a.Justified > 0) || (a.Periods.Term2-a.Justified > 0)
+		relativePresence = float64(a.Periods.Term1+a.Periods.Term2-a.Justified) / float64(a.RelativePeriods)
+		absolutePresence = float64(a.Periods.Term1+a.Periods.Term2-a.Justified) / float64(a.AbsolutePeriods)
 	case SEMESTRE_2:
-		relativePresence = float64(a.Periods.Term3+a.Periods.Term4) / float64(a.RelativePeriods)
-		absolutePresence = float64(a.Periods.Term3+a.Periods.Term4) / float64(a.AbsolutePeriods)
+		selected = (a.Periods.Term3-a.Justified > 0) || (a.Periods.Term4-a.Justified > 0)
+		relativePresence = float64(a.Periods.Term3+a.Periods.Term4-a.Justified) / float64(a.RelativePeriods)
+		absolutePresence = float64(a.Periods.Term3+a.Periods.Term4-a.Justified) / float64(a.AbsolutePeriods)
 	default:
-		relativePresence = float64(a.Total) / float64(a.RelativePeriods)
-		absolutePresence = float64(a.Total) / float64(a.AbsolutePeriods)
+		selected = true
+		relativePresence = float64(a.Total-a.Justified) / float64(a.RelativePeriods)
+		absolutePresence = float64(a.Total-a.Justified) / float64(a.AbsolutePeriods)
 	}
-	return relativePresence * 100.0, absolutePresence * 100.0
+	return selected, relativePresence * 100.0, absolutePresence * 100.0
 }

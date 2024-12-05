@@ -9,24 +9,24 @@ import (
 )
 
 type AbsenceReport struct {
-	Student     string
-	Orientation string
-	Courses     []CourseAbsence
+	Student     string          `json:"student"`
+	Orientation string          `json:"orientation"`
+	Courses     []CourseAbsence `json:"courses"`
 }
 
 type CourseAbsence struct {
-	Name    string
+	Name    string `json:"name"`
 	Periods struct {
-		Ete   int
-		Term1 int
-		Term2 int
-		Term3 int
-		Term4 int
-	}
-	Total           int
-	Justified       int
-	RelativePeriods int
-	AbsolutePeriods int
+		Ete   int `json:"ete"`
+		Term1 int `json:"term1"`
+		Term2 int `json:"term2"`
+		Term3 int `json:"term3"`
+		Term4 int `json:"term4"`
+	} `json:"periods"`
+	Total           int `json:"total"`
+	Justified       int `json:"justified"`
+	RelativePeriods int `json:"relativePeriods"`
+	AbsolutePeriods int `json:"absolutePeriods"`
 }
 
 func (s *Parser) Absences() (*AbsenceReport, error) {
