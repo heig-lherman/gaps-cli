@@ -76,7 +76,7 @@ func parseAbsenceWithJustified(text string, totalJustified *int) int {
 	// Look for pattern like "2 [2]"
 	if matches := regexp.MustCompile(`(\d+)\s*\[(\d+)\]`).FindStringSubmatch(text); matches != nil {
 		justified, _ := strconv.Atoi(matches[2])
-		*totalJustified += justified // Add to total justified
+		*totalJustified += justified
 		total, _ := strconv.Atoi(matches[1])
 		return total
 	}
