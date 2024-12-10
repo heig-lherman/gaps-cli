@@ -59,11 +59,12 @@ var (
 )
 
 func init() {
-	absencesCmd.Flags().StringVarP(&absencesOpts.format, "format", "o", "table", "Output format (table, json)")
+	absencesCmd.Flags().StringVarP(&absencesOpts.format, "format", "o", "table",
+		"Output format (table, json) note that other flags do not apply on json format")
 	absencesCmd.Flags().UintVarP(&absencesOpts.year, "year", "y", currentAcademicYear(),
 		"Academic year (year at the start of the academic year, e.g. 2020 for 2020-2021 academic year)")
 	absencesCmd.Flags().StringVarP((*string)(&absencesOpts.semester), "semester", "s", string(ALL),
-		"Period to calculate absences for (all, ete, 1, 2)")
+		"Semester to get absences for (all, ete, 1, 2)")
 	absencesCmd.Flags().UintVarP(&absencesOpts.minRate, "rate", "r", 0, "Minimum rate to display")
 	rootCmd.AddCommand(absencesCmd)
 }
@@ -78,7 +79,7 @@ func printAbsences(absences *parser.AbsenceReport) {
 		{Number: 3, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 		{Number: 4, Align: text.AlignCenter, AlignHeader: text.AlignCenter},
 	})
-	t.AppendHeader(table.Row{"Course", "Total", "Taux relatif", "Taux absolu"})
+	t.AppendHeader(table.Row{"Course", "Total", "Relative rate", "Absolute rate"})
 
 	for _, a := range absences.Courses {
 		totalAbsence := a.Total - a.Justified
