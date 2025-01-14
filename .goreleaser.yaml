@@ -1,3 +1,4 @@
+version: 2
 before:
   hooks:
     - go mod tidy
@@ -27,7 +28,6 @@ builds:
         -X lutonite.dev/gaps-cli/_internal/version.arch={{.Os}}/{{.Arch}}
 archives:
   - id: gaps-cli
-    rlcp: true
     name_template: >-
       {{ .ProjectName }}_
       {{- title .Os }}_
