@@ -18,14 +18,18 @@ import (
 )
 
 type GradesCmdOpts struct {
-	format string
-	year   string
-	class  string
+	format   string
+	year     string
+	class    string
+	semester gaps.Semester
 }
 
 var (
-	gradesOpts = &GradesCmdOpts{}
-	gradesCmd  = &cobra.Command{
+	gradesOpts = &GradesCmdOpts{
+		semester: currentSemester(),
+	}
+
+	gradesCmd = &cobra.Command{
 		Use:   "grades",
 		Short: "Allows to consult your grades",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -35,7 +39,7 @@ var (
 			for _, sYear := range strings.Split(gradesOpts.year, ",") {
 				year, err := strconv.ParseUint(sYear, 10, 32)
 				util.CheckErr(err)
-				grades := gaps.NewGradesAction(cfg, uint(year))
+				grades := gaps.NewSemesterGradesAction(cfg, uint(year), gradesOpts.semester)
 				grades.ClassFilter = gradesOpts.class
 				res, err := grades.FetchGrades()
 				util.CheckErr(err)
@@ -64,6 +68,7 @@ func init() {
 		&gradesOpts.year, "year", "y", gradesOpts.defaultYear(),
 		"Academic year (year at the start of the academic year, e.g. 2020 for 2020-2021 academic year)",
 	)
+	gradesCmd.Flags().VarP(&gradesOpts.semester, "semester", "s", fmt.Sprintf("Academic semester (S1, S2, all)"))
 
 	rootCmd.AddCommand(gradesCmd)
 }
@@ -75,6 +80,16 @@ func currentAcademicYear() uint {
 	}
 
 	return uint(time.Now().Year())
+}
+
+func currentSemester() gaps.Semester {
+	actual, _ := ch.BettagMontag.Calc(time.Now().Year())
+	_, week := time.Now().ISOWeek()
+	if !time.Now().Before(actual) || week < 8 {
+		return gaps.First
+	}
+
+	return gaps.Second
 }
 
 func (*GradesCmdOpts) defaultYear() string {

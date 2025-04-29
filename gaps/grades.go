@@ -8,16 +8,23 @@ import (
 )
 
 type GradesAction struct {
-	cfg  *TokenClientConfiguration
-	year uint
+	cfg *TokenClientConfiguration
+
+	year     uint
+	semester Semester
 
 	ClassFilter string
 }
 
 func NewGradesAction(config *TokenClientConfiguration, year uint) *GradesAction {
+	return NewSemesterGradesAction(config, year, All)
+}
+
+func NewSemesterGradesAction(config *TokenClientConfiguration, year uint, semester Semester) *GradesAction {
 	return &GradesAction{
-		cfg:  config,
-		year: year,
+		cfg:      config,
+		year:     year,
+		semester: semester,
 	}
 }
 
@@ -29,7 +36,7 @@ func (a *GradesAction) FetchGrades() ([]*parser.ClassGrades, error) {
 
 	res, err := a.cfg.doForm(req, url.Values{
 		"rs":     {"getStudentCCs"},
-		"rsargs": {fmt.Sprintf("[%d, %d]", a.cfg.studentId, a.year)},
+		"rsargs": {fmt.Sprintf("[%d, %d, %d]", a.cfg.studentId, a.year, a.semester.rsArg())},
 	})
 	if err != nil {
 		return nil, err
